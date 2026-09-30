@@ -1,0 +1,26 @@
+{
+  "name": "cloud-data-analytics-dashboard",
+  "version": "1.0.0",
+  "description": "Cloud-Based Data Analytics Dashboard with Amazon Kinesis, AWS Lambda, and Amazon Redshift",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install --prefix backend && npm install --prefix frontend",
+    "dev:backend": "node backend/src/server.js",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "build:frontend": "npm run build --prefix frontend",
+    "test:lambda": "node lambda/dataProcessor/localTest.js",
+    "start": "node backend/src/server.js"
+  },
+  "keywords": [
+    "aws",
+    "kinesis",
+    "lambda",
+    "redshift",
+    "react",
+    "vite",
+    "tailwind",
+    "analytics-dashboard"
+  ],
+  "author": "",
+  "license": "ISC"
+}

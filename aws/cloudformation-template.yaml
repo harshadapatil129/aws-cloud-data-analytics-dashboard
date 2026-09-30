@@ -1,0 +1,126 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation Template for Cloud-Based Data Analytics Dashboard Pipeline'
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: dev
+    Description: Environment stage name (dev, staging, prod)
+  KinesisShardCount:
+    Type: Number
+    Default: 2
+    Description: Number of shards for Kinesis Data Stream
+
+Resources:
+  # ----------------------------------------------------------------------------
+  # 1. Amazon Kinesis Data Stream
+  # ----------------------------------------------------------------------------
+  AnalyticsKinesisStream:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      Name: !Sub 'analytics-data-stream-${EnvironmentName}'
+      ShardCount: !Ref KinesisShardCount
+      RetentionPeriodHours: 24
+      StreamEncryption:
+        EncryptionType: KMS
+        KeyId: alias/aws/kinesis
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Project
+          Value: CloudDataAnalytics
+
+  # ----------------------------------------------------------------------------
+  # 2. Amazon S3 Dead Letter & Raw Archive Buckets
+  # ----------------------------------------------------------------------------
+  AnalyticsDLQBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'analytics-dlq-failed-records-${AWS::AccountId}-${EnvironmentName}'
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  AnalyticsRawArchiveBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'analytics-raw-archive-${AWS::AccountId}-${EnvironmentName}'
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: TransitionToGlacier
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 90
+                StorageClass: GLACIER
+
+  # ----------------------------------------------------------------------------
+  # 3. IAM Role for AWS Lambda Function
+  # ----------------------------------------------------------------------------
+  LambdaDataProcessorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'analytics-lambda-processor-role-${EnvironmentName}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaKinesisExecutionRole
+      Policies:
+        - PolicyName: S3AndRedshiftAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource:
+                  - !Sub '${AnalyticsDLQBucket.Arn}/*'
+                  - !Sub '${AnalyticsRawArchiveBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - redshift-data:ExecuteStatement
+                  - redshift-data:BatchExecuteStatement
+                  - redshift-data:DescribeStatement
+                  - redshift-data:GetStatementResult
+                Resource: '*'
+
+  # ----------------------------------------------------------------------------
+  # 4. Amazon CloudWatch Metric Alarms
+  # ----------------------------------------------------------------------------
+  KinesisIteratorAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'Kinesis-Iterator-Age-High-${EnvironmentName}'
+      AlarmDescription: 'Alarm when Kinesis iterator age exceeds 30 seconds (indicates Lambda lag)'
+      MetricName: GetRecords.IteratorAgeMilliseconds
+      Namespace: AWS/Kinesis
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 30000
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: StreamName
+          Value: !Ref AnalyticsKinesisStream
+
+Outputs:
+  KinesisStreamArn:
+    Description: ARN of the Kinesis Data Stream
+    Value: !GetAtt AnalyticsKinesisStream.Arn
+  KinesisStreamName:
+    Description: Name of the Kinesis Data Stream
+    Value: !Ref AnalyticsKinesisStream
+  DLQBucketName:
+    Description: Name of the S3 Dead Letter Queue bucket
+    Value: !Ref AnalyticsDLQBucket

@@ -1,0 +1,13 @@
+source,category,value,status
+Website/Application,Checkout Click,420.50,SUCCESS
+IoT Device,Temperature Sensor,82.40,SUCCESS
+Transaction System,Order Payment,1250.00,SUCCESS
+API,Partner API Call,45.00,SUCCESS
+IoT Device,Pressure Gauge,108.20,WARNING
+Website/Application,User Signup,1.00,SUCCESS
+Transaction System,Subscription Renewal,89.99,SUCCESS
+API,Batch Sync Request,620.00,SUCCESS
+IoT Device,Energy Consumption,14.80,SUCCESS
+Transaction System,Refund Issued,49.95,SUCCESS
+Website/Application,Cart Addition,129.00,SUCCESS
+IoT Device,Vibration Metric,12.50,WARNING

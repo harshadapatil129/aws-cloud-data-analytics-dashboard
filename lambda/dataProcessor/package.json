@@ -1,0 +1,13 @@
+{
+  "name": "lambda-data-processor",
+  "version": "1.0.0",
+  "description": "AWS Lambda function to process streaming records from Amazon Kinesis and load into Amazon Redshift",
+  "main": "index.js",
+  "scripts": {
+    "test": "node localTest.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-redshift-data": "^3.650.0",
+    "@aws-sdk/client-s3": "^3.650.0"
+  }
+}
